@@ -3,21 +3,33 @@ import SwiftUI
 import Combine
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-    private var statusItem: NSStatusItem!
+    private var statusItem: NSStatusItem?
     private var permissionWindowController: PermissionWindowController?
     private var settingsWindowController: SettingsWindowController?
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Always setup menu bar first so icon is visible
-        setupMenuBar()
+        // Setup menu bar if enabled
+        if SettingsManager.shared.showMenuBarIcon {
+            setupMenuBar()
+        }
+        
+        // Listen for menu bar visibility changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleMenuBarVisibilityChange),
+            name: .menuBarIconVisibilityChanged,
+            object: nil
+        )
         
         // Check permission first
         KeyMonitor.shared.checkAccessibilityPermission()
         
         if KeyMonitor.shared.hasAccessibilityPermission {
-            // Permission granted, start monitoring and show settings
-            KeyMonitor.shared.startMonitoring()
+            // Permission granted, start monitoring if enabled and show settings
+            if SettingsManager.shared.autoStartMonitoring {
+                KeyMonitor.shared.startMonitoring()
+            }
             openSettings()
         } else {
             // Show permission window
@@ -44,6 +56,45 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         KeyMonitor.shared.stopMonitoring()
     }
     
+    // Handle quit confirmation
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if SettingsManager.shared.confirmQuit {
+            let alert = NSAlert()
+            alert.messageText = "Quit SafeKeylogger?"
+            alert.informativeText = "Keystroke monitoring will stop until you reopen the app."
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "Quit")
+            alert.addButton(withTitle: "Cancel")
+            
+            let response = alert.runModal()
+            if response == .alertFirstButtonReturn {
+                return .terminateNow
+            } else {
+                return .terminateCancel
+            }
+        }
+        return .terminateNow
+    }
+    
+    // Handle app re-open (e.g., clicking icon in Dock or Spotlight while running)
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        openSettings()
+        return true
+    }
+    
+    @objc private func handleMenuBarVisibilityChange() {
+        if SettingsManager.shared.showMenuBarIcon {
+            if statusItem == nil {
+                setupMenuBar()
+            }
+        } else {
+            if let item = statusItem {
+                NSStatusBar.system.removeStatusItem(item)
+                statusItem = nil
+            }
+        }
+    }
+    
     // MARK: - Permission Window
     
     private func showPermissionWindow() {
@@ -51,7 +102,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // Permission granted callback
             self?.permissionWindowController?.close()
             self?.permissionWindowController = nil
-            KeyMonitor.shared.startMonitoring()
+            if SettingsManager.shared.autoStartMonitoring {
+                KeyMonitor.shared.startMonitoring()
+            }
             self?.updateMenuBarMenu()
             self?.openSettings()
         }
@@ -63,48 +116,46 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Menu Bar Setup
     
     private func setupMenuBar() {
-        // Create status item with fixed length for text
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-
-        if let button = statusItem.button {
-            // Use a simple text title that's always visible
-            button.title = "⌨️"
-            // Alternative: use attributed string for better styling
-            let attributes: [NSAttributedString.Key: Any] = [
-                .font: NSFont.systemFont(ofSize: 14)
-            ]
-            button.attributedTitle = NSAttributedString(string: "⌨️", attributes: attributes)
+        // Create status item
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        
+        if let button = statusItem?.button {
+            // Use SF Symbol as template image (adapts to light/dark mode)
+            if let image = NSImage(systemSymbolName: "keyboard.fill", accessibilityDescription: "SafeKeylogger") {
+                let config = NSImage.SymbolConfiguration(pointSize: 16, weight: .regular)
+                if let configuredImage = image.withSymbolConfiguration(config) {
+                    configuredImage.isTemplate = true  // Makes it adapt to menu bar appearance
+                    button.image = configuredImage
+                }
+            }
         }
         
         updateMenuBarMenu()
     }
     
     private func updateMenuBarMenu() {
-        guard statusItem != nil else { return }
+        guard let statusItem = statusItem else { return }
         
         let menu = NSMenu()
         
-        // Status item
+        // Status item with colored dot indicator
         let statusText: String
-        let statusImage: String
+        let dotColor: NSColor
         
         if !KeyMonitor.shared.hasAccessibilityPermission {
-            statusText = "Status: No Permission"
-            statusImage = "exclamationmark.triangle"
+            statusText = "No Permission"
+            dotColor = .systemOrange
         } else if KeyMonitor.shared.isMonitoring {
-            statusText = "Status: Active"
-            statusImage = "checkmark.circle.fill"
+            statusText = "Recording"
+            dotColor = .systemGreen
         } else {
-            statusText = "Status: Paused"
-            statusImage = "pause.circle"
+            statusText = "Paused"
+            dotColor = .systemGray
         }
         
-        let statusItem = NSMenuItem(title: statusText, action: nil, keyEquivalent: "")
-        statusItem.image = NSImage(systemSymbolName: statusImage, accessibilityDescription: nil)
-        if KeyMonitor.shared.hasAccessibilityPermission && KeyMonitor.shared.isMonitoring {
-            statusItem.image?.isTemplate = true
-        }
-        menu.addItem(statusItem)
+        let statusMenuItem = NSMenuItem(title: statusText, action: nil, keyEquivalent: "")
+        statusMenuItem.image = createStatusDotImage(color: dotColor)
+        menu.addItem(statusMenuItem)
         
         menu.addItem(NSMenuItem.separator())
         
@@ -135,7 +186,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         quitItem.target = self
         menu.addItem(quitItem)
         
-        self.statusItem?.menu = menu
+        statusItem.menu = menu
+    }
+    
+    private func createStatusDotImage(color: NSColor) -> NSImage {
+        let size: CGFloat = 10
+        let image = NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
+            color.setFill()
+            let dot = NSBezierPath(ovalIn: rect.insetBy(dx: 1, dy: 1))
+            dot.fill()
+            return true
+        }
+        return image
     }
     
     // MARK: - Menu Actions

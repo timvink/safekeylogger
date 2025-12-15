@@ -42,3 +42,7 @@ Packages/
 *.tmp
 *.temp
 *.log
+
+
+.claude/*
+.claude/

@@ -38,12 +38,18 @@ struct PermissionView: View {
             
             // Restart hint
             if showRestartHint {
-                HStack {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.orange)
-                    Text("Permission enabled but not detected. Try restarting the app.")
-                        .font(.callout)
-                        .foregroundColor(.orange)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                        Text("Permission not detected")
+                            .font(.callout)
+                            .fontWeight(.medium)
+                            .foregroundColor(.orange)
+                    }
+                    Text("If you already enabled the permission, try removing SafeKeylogger from the Accessibility list and adding it again, then restart the app.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
                 .padding()
                 .background(Color.orange.opacity(0.1))
@@ -142,20 +148,18 @@ struct PermissionView: View {
         // Get the path to the current app
         let appPath = Bundle.main.bundlePath
         
-        // Launch a new instance
-        let task = Process()
-        task.launchPath = "/usr/bin/open"
-        task.arguments = [appPath]
+        // Use NSWorkspace to relaunch - more reliable than Process
+        let url = URL(fileURLWithPath: appPath)
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.createsNewApplicationInstance = true
         
-        do {
-            try task.run()
-            // Quit current instance
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                NSApplication.shared.terminate(nil)
+        NSWorkspace.shared.openApplication(at: url, configuration: configuration) { _, error in
+            if error == nil {
+                // Successfully launched new instance, quit this one
+                DispatchQueue.main.async {
+                    NSApplication.shared.terminate(nil)
+                }
             }
-        } catch {
-            // If restart fails, just quit
-            NSApplication.shared.terminate(nil)
         }
     }
 }

@@ -10,7 +10,7 @@ class SettingsWindowController: NSWindowController {
         let window = NSWindow(contentViewController: hostingController)
         window.title = "SafeKeylogger Settings"
         window.styleMask = [.titled, .closable]
-        window.setContentSize(NSSize(width: 480, height: 400))
+        window.setContentSize(NSSize(width: 480, height: 500))
         window.center()
         window.isReleasedWhenClosed = false
         
@@ -20,14 +20,41 @@ class SettingsWindowController: NSWindowController {
 
 struct SettingsWindowView: View {
     @ObservedObject var keyMonitor = KeyMonitor.shared
+    @ObservedObject var settings = SettingsManager.shared
     @State private var databasePath: String = DatabaseManager.shared.databasePath
     @State private var showingClearConfirmation = false
+    @State private var isPulsing = false
+    
+    var statusColor: Color {
+        if !keyMonitor.hasAccessibilityPermission {
+            return .orange
+        } else if keyMonitor.isMonitoring {
+            return .green
+        } else {
+            return .gray
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Monitoring section
-            GroupBox(label: Label("Monitoring", systemImage: "keyboard")) {
-                HStack {
+            GroupBox {
+                HStack(spacing: 12) {
+                    // Status indicator with pulsing animation
+                    ZStack {
+                        Circle()
+                            .fill(statusColor.opacity(0.3))
+                            .frame(width: 32, height: 32)
+                            .scaleEffect(isPulsing && keyMonitor.isMonitoring ? 1.3 : 1.0)
+                            .opacity(isPulsing && keyMonitor.isMonitoring ? 0 : 1)
+                        
+                        Circle()
+                            .fill(statusColor)
+                            .frame(width: 12, height: 12)
+                    }
+                    .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: isPulsing)
+                    .onAppear { isPulsing = true }
+                    
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Keystroke Monitoring")
                             .fontWeight(.medium)
@@ -58,11 +85,39 @@ struct SettingsWindowView: View {
                         ))
                         .toggleStyle(.switch)
                     } else {
-                        Button("Grant Permission") {
-                            keyMonitor.requestAccessibilityPermission()
+                        VStack(spacing: 8) {
+                            Button("Grant Permission") {
+                                keyMonitor.requestAccessibilityPermission()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            
+                            Button("Recheck Permission") {
+                                keyMonitor.checkAccessibilityPermission()
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
                         }
-                        .buttonStyle(.borderedProminent)
                     }
+                }
+                .padding(.vertical, 4)
+            } label: {
+                Label("Monitoring", systemImage: "keyboard")
+            }
+
+            // App preferences section
+            GroupBox(label: Label("Preferences", systemImage: "gearshape")) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Toggle("Show icon in menu bar", isOn: Binding(
+                        get: { settings.showMenuBarIcon },
+                        set: { newValue in
+                            settings.showMenuBarIcon = newValue
+                            NotificationCenter.default.post(name: .menuBarIconVisibilityChanged, object: nil)
+                        }
+                    ))
+                    
+                    Toggle("Start monitoring automatically on launch", isOn: $settings.autoStartMonitoring)
+                    
+                    Toggle("Ask for confirmation when quitting", isOn: $settings.confirmQuit)
                 }
                 .padding(.vertical, 4)
             }
@@ -136,7 +191,7 @@ struct SettingsWindowView: View {
             }
         }
         .padding()
-        .frame(minWidth: 450, minHeight: 350)
+        .frame(minWidth: 450, minHeight: 420)
         .alert("Clear All Statistics?", isPresented: $showingClearConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Clear", role: .destructive) {
@@ -176,4 +231,9 @@ struct SettingsWindowView: View {
         
         NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: folderPath)
     }
+}
+
+// Notification for menu bar icon visibility changes
+extension Notification.Name {
+    static let menuBarIconVisibilityChanged = Notification.Name("menuBarIconVisibilityChanged")
 }
