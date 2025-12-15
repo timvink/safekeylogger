@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # SafeKeylogger DMG Creation Script
-# Usage: ./Scripts/create-dmg.sh
+# Usage: ./scripts/create-dmg.sh
 
 set -e
 
