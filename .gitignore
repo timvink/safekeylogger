@@ -1,0 +1,44 @@
+# Build outputs
+build/
+.build/
+DerivedData/
+*.dmg
+
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+*.xcuserstate
+
+# Swift Package Manager
+.swiftpm/
+Package.resolved
+Packages/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+.vscode/
+
+# App data (user's keystroke database)
+*.db
+*.db-shm
+*.db-wal
+
+# Code signing
+*.p12
+*.mobileprovision
+*.provisionprofile
+
+# Temporary files
+*.tmp
+*.temp
+*.log
