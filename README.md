@@ -13,8 +13,8 @@ A **privacy-focused** macOS menu bar app that tracks your keystroke statistics w
 SafeKeylogger helps you understand your typing patterns by tracking:
 
 - **Character frequency** - Which keys do you press most often?
-- **Bigrams** - Common 2-character sequences (like "th", "he", "in")
-- **Trigrams** - Common 3-character sequences (like "the", "ing", "and")
+- **Bigrams** - All 2-character sequences (like "th", "he", "in")
+- **Trigrams** - All 3-character sequences (like "the", "ing", "and")
 
 ### 🔒 Privacy by Design
 
