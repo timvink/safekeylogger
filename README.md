@@ -35,7 +35,8 @@ Unlike traditional keyloggers, SafeKeylogger **never stores your actual keystrok
 
 ## Screenshots
 
-*Click the keyboard icon in your menu bar to see your typing statistics.*
+<img src="docs/img/menu.png" width="300" style="display: inline-block; margin-right: 10px;" /> <img src="docs/img/settings.png" width="300" style="display: inline-block;" />
+
 
 ## Installation
 
