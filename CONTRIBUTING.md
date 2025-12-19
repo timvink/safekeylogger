@@ -76,11 +76,24 @@ CREATE TABLE trigrams (trigram TEXT PRIMARY KEY, count INTEGER);
 
 ## Building
 
+### Development Setup
+
+To maintain Accessibility permissions across rebuilds, set up a local development certificate:
+
+```bash
+./scripts/setup-dev-cert.sh
+```
+
+This creates a self-signed "SafeKeylogger Development" certificate in your keychain.
+
 ### Prerequisites
 
 - macOS 13.0 (Ventura) or later
 - Xcode 15+ or Swift 5.9+
-- Optional: `create-dmg` for prettier DMG packaging (`brew install create-dmg`)
+- **Recommended**: `create-dmg` for prettier DMG packaging:
+  ```bash
+  brew install create-dmg
+  ```
 
 ### Development Build
 

@@ -19,7 +19,7 @@ let package = Package(
                 .product(name: "GRDB", package: "GRDB.swift")
             ],
             path: "SafeKeylogger",
-            exclude: ["Info.plist"]
+            exclude: ["Info.plist", "SafeKeylogger.entitlements"]
         )
     ]
 )

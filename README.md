@@ -96,13 +96,26 @@ sqlite> SELECT * FROM bigrams ORDER BY count DESC LIMIT 10;
 sqlite> SELECT * FROM trigrams ORDER BY count DESC LIMIT 10;
 ```
 
+## Development
+
+To maintain Accessibility permissions across rebuilds, set up a local development certificate:
+
+```bash
+./scripts/setup-dev-cert.sh
+```
+
 ## Building a DMG for Distribution
 
 ```bash
 ./scripts/create-dmg.sh
 ```
 
-This creates `build/SafeKeylogger-1.0.0.dmg`.
+This creates `build/SafeKeylogger-1.0.1.dmg`.
+
+**Tip**: Install `create-dmg` for a prettier DMG:
+```bash
+brew install create-dmg
+```
 
 ## Contributing
 

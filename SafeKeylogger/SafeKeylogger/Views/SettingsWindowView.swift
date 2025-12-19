@@ -114,9 +114,11 @@ struct SettingsWindowView: View {
                             NotificationCenter.default.post(name: .menuBarIconVisibilityChanged, object: nil)
                         }
                     ))
-                    
+
+                    Toggle("Launch at login", isOn: $settings.launchAtLogin)
+
                     Toggle("Start monitoring automatically on launch", isOn: $settings.autoStartMonitoring)
-                    
+
                     Toggle("Ask for confirmation when quitting", isOn: $settings.confirmQuit)
                 }
                 .padding(.vertical, 4)
@@ -184,7 +186,7 @@ struct SettingsWindowView: View {
 
             // About section
             HStack {
-                Text("SafeKeylogger v1.0")
+                Text("SafeKeylogger v1.0.1")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Spacer()

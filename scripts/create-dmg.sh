@@ -6,7 +6,7 @@
 set -e
 
 APP_NAME="SafeKeylogger"
-VERSION="1.0.0"
+VERSION="1.0.1"
 BUILD_DIR="build"
 DMG_NAME="${APP_NAME}-${VERSION}.dmg"
 VOLUME_NAME="${APP_NAME} ${VERSION}"
@@ -39,17 +39,19 @@ cp SafeKeylogger/Info.plist "${APP_BUNDLE}/Contents/"
 # Create PkgInfo
 echo -n "APPL????" > "${APP_BUNDLE}/Contents/PkgInfo"
 
-# Create minimal entitlements (no sandbox)
-cat > "${PROJECT_ROOT}/${BUILD_DIR}/entitlements.plist" << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>com.apple.security.app-sandbox</key>
-    <false/>
-</dict>
-</plist>
-EOF
+# Codesign the app with entitlements
+ENTITLEMENTS_PATH="SafeKeylogger/SafeKeylogger.entitlements"
+echo "🔏 Codesigning app..."
+
+# Check if we have the development certificate (preserves permissions across rebuilds)
+DEV_CERT="SafeKeylogger Development"
+if security find-identity -v -p codesigning | grep -q "${DEV_CERT}"; then
+    echo "   Using '${DEV_CERT}' certificate..."
+    codesign --force --deep --sign "${DEV_CERT}" --entitlements "${ENTITLEMENTS_PATH}" "${APP_BUNDLE}"
+else
+    echo "   Using ad-hoc signing (run scripts/setup-dev-cert.sh to preserve permissions across rebuilds)..."
+    codesign --force --deep --sign - --entitlements "${ENTITLEMENTS_PATH}" "${APP_BUNDLE}"
+fi
 
 echo "✅ App bundle created at ${APP_BUNDLE}"
 

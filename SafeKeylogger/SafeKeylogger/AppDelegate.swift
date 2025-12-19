@@ -2,11 +2,12 @@ import Cocoa
 import SwiftUI
 import Combine
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem?
     private var permissionWindowController: PermissionWindowController?
     private var settingsWindowController: SettingsWindowController?
     private var cancellables = Set<AnyCancellable>()
+    private var keystrokeCountMenuItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Setup menu bar if enabled
@@ -135,13 +136,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     private func updateMenuBarMenu() {
         guard let statusItem = statusItem else { return }
-        
+
         let menu = NSMenu()
-        
+        menu.delegate = self
+
         // Status item with colored dot indicator
         let statusText: String
         let dotColor: NSColor
-        
+
         if !KeyMonitor.shared.hasAccessibilityPermission {
             statusText = "No Permission"
             dotColor = .systemOrange
@@ -152,40 +154,45 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             statusText = "Paused"
             dotColor = .systemGray
         }
-        
+
         let statusMenuItem = NSMenuItem(title: statusText, action: nil, keyEquivalent: "")
         statusMenuItem.image = createStatusDotImage(color: dotColor)
         menu.addItem(statusMenuItem)
-        
+
+        // Keystroke count (updated when menu opens)
+        keystrokeCountMenuItem = NSMenuItem(title: "0 keystrokes logged", action: nil, keyEquivalent: "")
+        keystrokeCountMenuItem?.isEnabled = false
+        menu.addItem(keystrokeCountMenuItem!)
+
         menu.addItem(NSMenuItem.separator())
-        
+
         // Toggle monitoring (only if permission granted)
         if KeyMonitor.shared.hasAccessibilityPermission {
             let toggleTitle = KeyMonitor.shared.isMonitoring ? "Pause Monitoring" : "Resume Monitoring"
             let toggleItem = NSMenuItem(title: toggleTitle, action: #selector(toggleMonitoring), keyEquivalent: "")
             toggleItem.target = self
             menu.addItem(toggleItem)
-            
+
             menu.addItem(NSMenuItem.separator())
         }
-        
+
         // Open database folder
         let openFolderItem = NSMenuItem(title: "Open Database Folder", action: #selector(openDatabaseFolder), keyEquivalent: "o")
         openFolderItem.target = self
         menu.addItem(openFolderItem)
-        
+
         // Settings
         let settingsItem = NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ",")
         settingsItem.target = self
         menu.addItem(settingsItem)
-        
+
         menu.addItem(NSMenuItem.separator())
-        
+
         // Quit
         let quitItem = NSMenuItem(title: "Quit SafeKeylogger", action: #selector(quitApp), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
-        
+
         statusItem.menu = menu
     }
     
@@ -232,5 +239,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     @objc private func quitApp() {
         NSApplication.shared.terminate(nil)
+    }
+
+    // MARK: - NSMenuDelegate
+
+    func menuWillOpen(_ menu: NSMenu) {
+        // Update keystroke count only when menu opens (for performance)
+        let count = DatabaseManager.shared.totalCharacterCount()
+        let formatted = NumberFormatter.localizedString(from: NSNumber(value: count), number: .decimal)
+        keystrokeCountMenuItem?.title = "\(formatted) keystrokes logged"
     }
 }

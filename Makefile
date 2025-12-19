@@ -1,13 +1,16 @@
 build:
-	./Scripts/create-dmg.sh
+	./scripts/create-dmg.sh
 
 install: build
 	@echo "🛑 Stopping SafeKeylogger if running..."
 	@killall SafeKeylogger 2>/dev/null || true
 	@sleep 1
 	@echo "📦 Installing to /Applications..."
-	@rm -rf /Applications/SafeKeylogger.app
-	@cp -R build/SafeKeylogger.app /Applications/
+	@# Use rsync to update in-place, preserving the app's identity for macOS permissions
+	@# The -a flag preserves permissions, and --delete removes old files
+	@rsync -a --delete build/SafeKeylogger.app/ /Applications/SafeKeylogger.app/
+	@# Touch the app to update modification time
+	@touch /Applications/SafeKeylogger.app
 	@echo "✅ Installed to /Applications/SafeKeylogger.app"
 
 run: install
@@ -15,7 +18,7 @@ run: install
 	@open /Applications/SafeKeylogger.app
 
 release: build
-	@VERSION=$$(grep 'VERSION=' Scripts/create-dmg.sh | head -1 | cut -d'"' -f2); \
+	@VERSION=$$(grep 'VERSION=' scripts/create-dmg.sh | head -1 | cut -d'"' -f2); \
 	DMG_PATH="build/SafeKeylogger-$${VERSION}.dmg"; \
 	if [ ! -f "$$DMG_PATH" ]; then \
 		echo "Error: DMG not found at $$DMG_PATH"; \
