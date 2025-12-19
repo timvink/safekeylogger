@@ -15,6 +15,7 @@ SafeKeylogger helps you understand your typing patterns by tracking:
 - **Character frequency** - Which keys do you press most often?
 - **Bigrams** - All 2-character sequences (like "th", "he", "in")
 - **Trigrams** - All 3-character sequences (like "the", "ing", "and")
+- **Typing activity** - Number of characters typed per hour (UTC)
 
 ### 🔒 Privacy by Design
 

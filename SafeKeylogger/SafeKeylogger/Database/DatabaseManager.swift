@@ -65,6 +65,12 @@ final class DatabaseManager {
                 t.column("trigram", .text).primaryKey()
                 t.column("count", .integer).notNull().defaults(to: 1)
             }
+
+            // Hourly counts table
+            try db.create(table: "hourly_counts", ifNotExists: true) { t in
+                t.column("timestamp", .datetime).primaryKey()
+                t.column("count", .integer).notNull().defaults(to: 1)
+            }
         }
     }
 
@@ -107,6 +113,26 @@ final class DatabaseManager {
                         ON CONFLICT(trigram) DO UPDATE SET count = count + 1
                         """,
                     arguments: [trigram]
+                )
+            }
+        }
+    }
+
+    func recordHourlyCount() {
+        queue.async { [weak self] in
+            // Get start of current hour in UTC
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(abbreviation: "UTC")!
+            let components = calendar.dateComponents([.year, .month, .day, .hour], from: Date())
+            guard let startOfHour = calendar.date(from: components) else { return }
+
+            try? self?.dbQueue?.write { db in
+                try db.execute(
+                    sql: """
+                        INSERT INTO hourly_counts (timestamp, count) VALUES (?, 1)
+                        ON CONFLICT(timestamp) DO UPDATE SET count = count + 1
+                        """,
+                    arguments: [startOfHour]
                 )
             }
         }
@@ -171,6 +197,7 @@ final class DatabaseManager {
                 try db.execute(sql: "DELETE FROM characters")
                 try db.execute(sql: "DELETE FROM bigrams")
                 try db.execute(sql: "DELETE FROM trigrams")
+                try db.execute(sql: "DELETE FROM hourly_counts")
             }
         }
     }

@@ -38,3 +38,15 @@ struct TrigramCount: Codable, FetchableRecord, PersistableRecord {
         static let count = Column(CodingKeys.count)
     }
 }
+
+struct HourlyCount: Codable, FetchableRecord, PersistableRecord {
+    static let databaseTableName = "hourly_counts"
+
+    var timestamp: Date // Start of the hour in UTC
+    var count: Int
+
+    enum Columns {
+        static let timestamp = Column(CodingKeys.timestamp)
+        static let count = Column(CodingKeys.count)
+    }
+}

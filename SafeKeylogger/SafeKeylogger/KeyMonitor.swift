@@ -158,6 +158,7 @@ final class KeyMonitor: ObservableObject {
         // Always record the most recent character (unigram)
         if let char = buffer.last {
             db.recordCharacter(char)
+            db.recordHourlyCount()
         }
 
         // Record bigram if we have at least 2 characters
