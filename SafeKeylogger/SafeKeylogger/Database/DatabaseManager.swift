@@ -204,22 +204,16 @@ final class DatabaseManager {
                 let todayStart = calendar.startOfDay(for: Date())
                 guard let weekAgo = calendar.date(byAdding: .day, value: -6, to: todayStart) else { return [] }
 
-                // hourly_counts timestamps are stored in UTC.
-                // We aggregate by local date using SQLite's localtime modifier.
-                let rows = try Row.fetchAll(db, sql: """
-                    SELECT date(timestamp, 'localtime') AS day, SUM(count) AS total
-                    FROM hourly_counts
-                    WHERE timestamp >= ?
-                    GROUP BY day
-                    ORDER BY day
-                    """, arguments: [weekAgo])
+                // Fetch typed HourlyCount records to avoid GRDB Row cast issues (Int64 vs Int)
+                let hourlyRows = try HourlyCount
+                    .filter(HourlyCount.Columns.timestamp >= weekAgo)
+                    .fetchAll(db)
 
-                // Build lookup from query results
+                // Aggregate by local day in Swift
                 var lookup: [String: Int] = [:]
-                for row in rows {
-                    if let day = row["day"] as? String, let total = row["total"] as? Int {
-                        lookup[day] = total
-                    }
+                for row in hourlyRows {
+                    let dayString = Self.dayStringFormatter.string(from: row.timestamp)
+                    lookup[dayString, default: 0] += row.count
                 }
 
                 // Build a full 7-day array, filling in zeros for missing days

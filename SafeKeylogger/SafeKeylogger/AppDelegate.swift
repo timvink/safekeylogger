@@ -8,14 +8,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var settingsWindowController: SettingsWindowController?
     private var cancellables = Set<AnyCancellable>()
     private var keystrokeCountMenuItem: NSMenuItem?
-    private var dailyStatsMenuItems: [NSMenuItem] = []
-
-    private static let dayNameFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "EEE"
-        return f
-    }()
-    private static let monoFont = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
+    private var dailyStatsBarView: DailyStatsBarView?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Setup menu bar if enabled
@@ -172,17 +165,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         keystrokeCountMenuItem?.isEnabled = false
         menu.addItem(keystrokeCountMenuItem!)
 
-        // Daily stats (updated when menu opens)
-        let headerItem = NSMenuItem(title: "Last 7 Days", action: nil, keyEquivalent: "")
-        headerItem.isEnabled = false
-        menu.addItem(headerItem)
-        dailyStatsMenuItems = []
-        for _ in 0..<7 {
-            let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-            item.isEnabled = false
-            dailyStatsMenuItems.append(item)
-            menu.addItem(item)
-        }
+        // Daily stats bar chart (updated when menu opens)
+        let barView = DailyStatsBarView()
+        dailyStatsBarView = barView
+        let chartItem = NSMenuItem()
+        chartItem.view = barView
+        menu.addItem(chartItem)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -269,20 +257,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let formatted = NumberFormatter.localizedString(from: NSNumber(value: count), number: .decimal)
         keystrokeCountMenuItem?.title = "\(formatted) keystrokes logged"
 
-        // Update daily stats
+        // Update daily stats bar chart
         let dailyCounts = DatabaseManager.shared.dailyCountsForLastWeek()
-        let maxCount = dailyCounts.reduce(0) { max($0, $1.count) }
-        let barMaxWidth = 8
-
-        let attrs: [NSAttributedString.Key: Any] = [.font: Self.monoFont]
-        for (i, entry) in dailyCounts.enumerated() {
-            guard i < dailyStatsMenuItems.count else { break }
-            let dayName = Self.dayNameFormatter.string(from: entry.date)
-            let barLength = maxCount > 0 ? Int(round(Double(entry.count) / Double(maxCount) * Double(barMaxWidth))) : 0
-            let bar = String(repeating: "\u{2588}", count: max(barLength, entry.count > 0 ? 1 : 0))
-            let countStr = NumberFormatter.localizedString(from: NSNumber(value: entry.count), number: .decimal)
-            let text = "  \(dayName)  \(bar.padding(toLength: barMaxWidth, withPad: " ", startingAt: 0))  \(countStr)"
-            dailyStatsMenuItems[i].attributedTitle = NSAttributedString(string: text, attributes: attrs)
-        }
+        dailyStatsBarView?.update(data: dailyCounts)
     }
 }

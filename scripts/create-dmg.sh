@@ -6,7 +6,7 @@
 set -e
 
 APP_NAME="SafeKeylogger"
-VERSION="1.2.0"
+VERSION="1.2.1"
 BUILD_DIR="build"
 DMG_NAME="${APP_NAME}-${VERSION}.dmg"
 VOLUME_NAME="${APP_NAME} ${VERSION}"

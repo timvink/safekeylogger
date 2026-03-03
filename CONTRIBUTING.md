@@ -19,10 +19,14 @@ SafeKeylogger/
 │   ├── Views/
 │   │   ├── MenuBarView.swift       # Main popover container
 │   │   ├── StatsView.swift         # Statistics display
-│   │   └── SettingsView.swift      # Configuration UI
+│   │   ├── SettingsView.swift      # Configuration UI
+│   │   ├── SettingsWindowView.swift # Settings window wrapper
+│   │   ├── PermissionView.swift    # Accessibility permission prompt
+│   │   └── DailyStatsBarView.swift # Bar chart for daily keystroke counts
 │   └── Info.plist                  # App configuration
 ├── scripts/
-│   └── create-dmg.sh               # DMG packaging script
+│   ├── create-dmg.sh               # DMG packaging script
+│   └── setup-dev-cert.sh           # Development certificate setup
 └── CONTRIBUTING.md
 ```
 
@@ -60,6 +64,7 @@ SQLite persistence layer using GRDB.swift.
 CREATE TABLE characters (char TEXT PRIMARY KEY, count INTEGER);
 CREATE TABLE bigrams (bigram TEXT PRIMARY KEY, count INTEGER);
 CREATE TABLE trigrams (trigram TEXT PRIMARY KEY, count INTEGER);
+CREATE TABLE hourly_counts (timestamp DATETIME PRIMARY KEY, count INTEGER);
 ```
 
 **Key behaviors:**
@@ -67,24 +72,16 @@ CREATE TABLE trigrams (trigram TEXT PRIMARY KEY, count INTEGER);
 - Writes happen on a dedicated serial queue
 - Each keystroke triggers an immediate write (crash-safe)
 - Database path configurable, defaults to `~/.safekeylogger/keystrokes.db`
+- `dailyCountsForLastWeek()` fetches typed `HourlyCount` records and aggregates by local day in Swift
 
 ### UI Components
 
 - **MenuBarView**: Container with tabs for Stats/Settings
 - **StatsView**: Displays top 10 characters/bigrams/trigrams, auto-refreshes every 2 seconds
 - **SettingsView**: Toggle monitoring, change database path, clear data
+- **DailyStatsBarView**: NSView subclass rendering a 7-day vertical bar chart in the tray menu
 
-## Building
-
-### Development Setup
-
-To maintain Accessibility permissions across rebuilds, set up a local development certificate:
-
-```bash
-./scripts/setup-dev-cert.sh
-```
-
-This creates a self-signed "SafeKeylogger Development" certificate in your keychain.
+## Build from Source
 
 ### Prerequisites
 
@@ -94,6 +91,16 @@ This creates a self-signed "SafeKeylogger Development" certificate in your keych
   ```bash
   brew install create-dmg
   ```
+
+### Development Certificate
+
+To maintain Accessibility permissions across rebuilds, set up a local development certificate:
+
+```bash
+./scripts/setup-dev-cert.sh
+```
+
+This creates a self-signed "SafeKeylogger Development" certificate in your keychain.
 
 ### Development Build
 
@@ -116,7 +123,7 @@ cd SafeKeylogger
 swift run
 ```
 
-**Note:** You'll need to grant Accessibility permission in System Settings → Privacy & Security → Accessibility.
+**Note:** You'll need to grant Accessibility permission in System Settings > Privacy & Security > Accessibility.
 
 ### Create DMG for Distribution
 
@@ -124,7 +131,7 @@ swift run
 ./scripts/create-dmg.sh
 ```
 
-This creates `build/SafeKeylogger-1.0.0.dmg`.
+This creates `build/SafeKeylogger-1.2.1.dmg`.
 
 ## Testing the App
 
@@ -150,19 +157,20 @@ sqlite3 ~/.safekeylogger/keystrokes.db
 sqlite> SELECT * FROM characters ORDER BY count DESC LIMIT 10;
 sqlite> SELECT * FROM bigrams ORDER BY count DESC LIMIT 10;
 sqlite> SELECT * FROM trigrams ORDER BY count DESC LIMIT 10;
+sqlite> SELECT * FROM hourly_counts ORDER BY timestamp DESC LIMIT 24;
 ```
 
 ## Common Issues
 
 ### "Not permitted to capture keystrokes"
-Grant Accessibility permission: System Settings → Privacy & Security → Accessibility → Enable SafeKeylogger
+Grant Accessibility permission: System Settings > Privacy & Security > Accessibility > Enable SafeKeylogger
 
 ### App doesn't appear in menu bar
 - Check that `LSUIElement` is `true` in Info.plist (no dock icon, menu bar only)
 - The app might already be running - check Activity Monitor
 
 ### Database not updating
-- Ensure monitoring is enabled (green dot in popover)
+- Ensure monitoring is enabled (green dot in menu)
 - Check file permissions on `~/.safekeylogger/`
 
 ## Notarization (for distribution)
@@ -170,12 +178,8 @@ Grant Accessibility permission: System Settings → Privacy & Security → Acces
 To distribute outside the App Store, notarize the DMG:
 
 ```bash
-xcrun notarytool submit build/SafeKeylogger-1.0.0.dmg \
+xcrun notarytool submit build/SafeKeylogger-1.2.1.dmg \
     --apple-id YOUR_APPLE_ID \
     --team-id YOUR_TEAM_ID \
     --password YOUR_APP_SPECIFIC_PASSWORD
 ```
-
-## License
-
-[Add your license here]
