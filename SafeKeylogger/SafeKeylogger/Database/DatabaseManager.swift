@@ -6,6 +6,12 @@ final class DatabaseManager {
 
     private var dbQueue: DatabaseQueue?
     private let queue = DispatchQueue(label: "com.safekeylogger.database", qos: .userInitiated)
+    private static let dayStringFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = .current
+        return f
+    }()
 
     var databasePath: String {
         get {
@@ -186,6 +192,48 @@ final class DatabaseManager {
             } ?? 0
         } catch {
             return 0
+        }
+    }
+
+    /// Returns keystroke counts per day for the last 7 days (in local timezone), ordered oldest to newest.
+    func dailyCountsForLastWeek() -> [(date: Date, count: Int)] {
+        do {
+            return try dbQueue?.read { db in
+                var calendar = Calendar(identifier: .gregorian)
+                calendar.timeZone = .current
+                let todayStart = calendar.startOfDay(for: Date())
+                guard let weekAgo = calendar.date(byAdding: .day, value: -6, to: todayStart) else { return [] }
+
+                // hourly_counts timestamps are stored in UTC.
+                // We aggregate by local date using SQLite's localtime modifier.
+                let rows = try Row.fetchAll(db, sql: """
+                    SELECT date(timestamp, 'localtime') AS day, SUM(count) AS total
+                    FROM hourly_counts
+                    WHERE timestamp >= ?
+                    GROUP BY day
+                    ORDER BY day
+                    """, arguments: [weekAgo])
+
+                // Build lookup from query results
+                var lookup: [String: Int] = [:]
+                for row in rows {
+                    if let day = row["day"] as? String, let total = row["total"] as? Int {
+                        lookup[day] = total
+                    }
+                }
+
+                // Build a full 7-day array, filling in zeros for missing days
+                var result: [(date: Date, count: Int)] = []
+                for offset in 0..<7 {
+                    guard let day = calendar.date(byAdding: .day, value: offset, to: weekAgo) else { continue }
+                    let dayString = Self.dayStringFormatter.string(from: day)
+                    let count = lookup[dayString] ?? 0
+                    result.append((date: day, count: count))
+                }
+                return result
+            } ?? []
+        } catch {
+            return []
         }
     }
 
