@@ -55,11 +55,22 @@ final class KeyMonitor: ObservableObject {
             eventsOfInterest: CGEventMask(eventMask),
             callback: { (proxy, type, event, refcon) -> Unmanaged<CGEvent>? in
                 guard let refcon = refcon else {
-                    return Unmanaged.passRetained(event)
+                    return Unmanaged.passUnretained(event)
                 }
                 let monitor = Unmanaged<KeyMonitor>.fromOpaque(refcon).takeUnretainedValue()
+
+                // macOS disables the tap if the callback is too slow (timeout) or on
+                // certain user input. Re-enable it so monitoring doesn't silently stop.
+                if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                    monitor.reenableTap()
+                    return nil
+                }
+
                 monitor.handleKeyEvent(event)
-                return Unmanaged.passRetained(event)
+                // Pass the event through unmodified. The callback does not own `event`
+                // (it's a +0 borrowed reference), so return it unretained — using
+                // passRetained here over-retains and leaks one CGEvent per keystroke.
+                return Unmanaged.passUnretained(event)
             },
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         ) else {
@@ -94,6 +105,13 @@ final class KeyMonitor: ObservableObject {
 
         // Clear buffer on stop for privacy
         buffer.removeAll()
+    }
+
+    /// Re-enable the event tap after the system has disabled it.
+    private func reenableTap() {
+        if let tap = eventTap {
+            CGEvent.tapEnable(tap: tap, enable: true)
+        }
     }
 
     // MARK: - Key Event Processing
